@@ -18,7 +18,11 @@ int X;      //Products produced by each producer
 int Ptime;  //Sleep time for producer thread after producing 1 product
 int Ctime;  //Sleep time for consumer thread after consuming 1 product
 
+sem_t zeroProducts;     //semaphore to check if queue is empty
+sem_t allProducts;      //semaphore to check if queue is full
 
+int* productsMade;      //Array for producer
+int* productsConsumed;  //Array for Consumer
 /**
  * for the 2 functions below, look
  * at the process slides/video for 
@@ -71,16 +75,17 @@ int main(int argc, char* argv[])
         time_t seconds;
         long nanoSeconds;
 
-        // clock_gettime(CLOCK_REALTIME, &startTime);
-        // clock_gettime(CLOCK_REALTIME, &endTime);
+        clock_gettime(0, &startTime);
+        clock_gettime(0, &endTime);
 
-        // seconds = endTime.tv_sec - startTime.tv_sec;
-        // nanoSeconds = endTime.tv_nsec - startTime.tv_nsec;
+        seconds = endTime.tv_sec - startTime.tv_sec;
+        nanoSeconds = endTime.tv_nsec - startTime.tv_nsec;
         
-        // if(endTime.tv_nsec < startTime.tv_nsec){
-        //     seconds--;
-        //     nanoSeconds = nanoSeconds + 1000000000L;
-        // }
+        if(endTime.tv_nsec < startTime.tv_nsec){
+            seconds--;
+            nanoSeconds = nanoSeconds + 1000000000L;
+        }
+        printf("\nnanoSec : %ld", nanoSeconds);
     }
 
 }
