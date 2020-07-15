@@ -10,7 +10,6 @@
 #include <semaphore.h>
 
 
-
 int N;      //Number of Buffers
 int P;      //Number of Producer Threads
 int C;      //Number of consumer Threads
@@ -18,11 +17,19 @@ int X;      //Products produced by each producer
 int Ptime;  //Sleep time for producer thread after producing 1 product
 int Ctime;  //Sleep time for consumer thread after consuming 1 product
 
-sem_t zeroProducts;     //semaphore to check if queue is empty
-sem_t allProducts;      //semaphore to check if queue is full
+sem_t zeroProductsPresent;     //semaphore to check if queue is empty
+sem_t allProductsPresent;      //semaphore to check if queue is full
 
-int* productsMade;      //Array for producer
-int* productsConsumed;  //Array for Consumer
+int* productsProducedArray;      //Array for producer
+int* productsConsumedArray;      //Array for Consumer
+
+//Queue for holding all the products that producer make & from where customer comsumes the product.
+int* productsQueue;
+int enterIndex = 0;     //Index where product will be added.
+int removeIndex = 0;    //Index where product will be removed.
+
+
+
 /**
  * for the 2 functions below, look
  * at the process slides/video for 
@@ -34,7 +41,12 @@ int* productsConsumed;  //Array for Consumer
  */
 int grab_item()
 {
-    
+    int product = productsQueue[removeIndex];
+    productsQueue[removeIndex++] = 0;
+    if(removeIndex==N){
+        removeIndex = 0;
+    }
+    return product;
 }
 
 /* 
@@ -44,7 +56,11 @@ int grab_item()
  */
 void put_item(int item)
 {
-    
+    productsQueue[enterIndex++] = item;
+    if(enterIndex==N){
+        enterIndex = 0;
+    }
+    return item;
 }
 
 int main(int argc, char* argv[]) 
@@ -76,6 +92,8 @@ int main(int argc, char* argv[])
         long nanoSeconds;
 
         clock_gettime(0, &startTime);
+
+
         clock_gettime(0, &endTime);
 
         seconds = endTime.tv_sec - startTime.tv_sec;
