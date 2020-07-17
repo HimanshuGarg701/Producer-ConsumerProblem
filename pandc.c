@@ -34,15 +34,8 @@ int productsQueue[500];
 int enterIndex = 0;     //Index where product will be added.
 int removeIndex = 0;    //Index where product will be removed.
 
+int productsCounter = 1;    //Keeps a track of number of products in queue
 
-//Method to make the product using the producer thread
-void *makeProduct(void *arg){
-
-}
-
-void *consumeProduct(void *arg){
-
-}
 
 /**
  * for the 2 functions below, look
@@ -63,6 +56,11 @@ int grab_item()
     return product;
 }
 
+void *consumeProduct(void *arg){
+    printf("Consumed THread");
+    pthread_exit(0);
+}
+
 /* 
  * function to put item
  * into shared resource 
@@ -74,6 +72,30 @@ void put_item(int item)
     if(enterIndex==N){
         enterIndex = 0;
     }
+}
+
+//Method to make the product using the producer thread
+void *makeProduct(void *arg){
+    int products = 0;
+
+    for(int index=0; index < X; index++){
+        products = productsCounter;
+        productsCounter++;
+
+        sem_wait(&zeroProductsPresent);
+        pthread_mutex_lock(&block);
+        productsProducedArray[counterProducer] = products;
+        counterProducer++;
+        put_item(products);
+
+        printf("%d produced by the producer thread\n", products);
+
+        pthread_mutex_unlock(&block);
+        sem_post(&allProductsPresent);
+
+        sleep(Ptime);
+    }
+    pthread_exit(0);
 }
 
 int main(int argc, char* argv[]) 
@@ -132,14 +154,26 @@ int main(int argc, char* argv[])
 
         for(int index=0; index<C; index++){
             pthread_create(&consumerThread[index], NULL, &consumeProduct, (void*) &index);
-            printf("Inside consumer loop");
+            printf("Consumer used");
         }
-        
+
+        for(int index=0; index < C;index++){
+            pthread_join(consumerThread[index], NULL);
+        }
+
+        for(int index=0; index<P; index++){
+            pthread_join(producerThread[index], NULL);
+        }
+
+        sem_destroy(&zeroProductsPresent);
+        pthread_mutex_destroy(&block);
+        sem_destroy(&allProductsPresent);
+
         if(endTime.tv_nsec < startTime.tv_nsec){
             seconds--;
             nanoSeconds = nanoSeconds + 1000000000L;
         }
         printf("\nnanoSec : %ld", nanoSeconds);
     }
-
+    return 0;
 }
