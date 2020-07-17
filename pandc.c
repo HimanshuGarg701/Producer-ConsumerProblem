@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <semaphore.h>
+#include <stdbool.h>
 
 
 int N;      //Number of Buffers
@@ -16,19 +17,32 @@ int C;      //Number of consumer Threads
 int X;      //Products produced by each producer
 int Ptime;  //Sleep time for producer thread after producing 1 product
 int Ctime;  //Sleep time for consumer thread after consuming 1 product
+int consumption;  //Numver of items to be consumed
+bool over;  //Check if items are over consumed
 
 sem_t zeroProductsPresent;     //semaphore to check if queue is empty
 sem_t allProductsPresent;      //semaphore to check if queue is full
+pthread_mutex_t block;
 
-int* productsProducedArray;      //Array for producer
-int* productsConsumedArray;      //Array for Consumer
+int productsProducedArray[500];      //Array for producer
+int productsConsumedArray[500];      //Array for Consumer
+int counterProducer = 0;             //Counter to keep track of producer array 
+int counterConsumer = 0;             //Counter to keep track of consumer array 
 
 //Queue for holding all the products that producer make & from where customer comsumes the product.
-int* productsQueue;
+int productsQueue[500];
 int enterIndex = 0;     //Index where product will be added.
 int removeIndex = 0;    //Index where product will be removed.
 
 
+//Method to make the product using the producer thread
+void *makeProduct(void *arg){
+
+}
+
+void *consumeProduct(void *arg){
+
+}
 
 /**
  * for the 2 functions below, look
@@ -77,6 +91,16 @@ int main(int argc, char* argv[])
         X = atoi(argv[4]);
         Ptime = atoi(argv[5]);
         Ctime = atoi(argv[6]);
+        consumption = (P*X)/C;
+        int isOver = (P*X)%C;
+        if(isOver==0){
+            over = false;
+        }else{
+            over = true;
+        }
+
+        pthread_t producerThread[P];
+        pthread_t consumerThread[C];
 
         printf("\nValues received are\n");
         printf("N is: %d\n", N);
@@ -93,6 +117,9 @@ int main(int argc, char* argv[])
 
         clock_gettime(0, &startTime);
 
+        pthread_mutex_init(&block, NULL);
+        sem_init(&allProductsPresent, 0, 0);
+        sem_init(&zeroProductsPresent, 0, N);
 
         clock_gettime(0, &endTime);
 
