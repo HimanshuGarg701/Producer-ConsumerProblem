@@ -74,7 +74,6 @@ void put_item(int item)
     if(enterIndex==N){
         enterIndex = 0;
     }
-    return item;
 }
 
 int main(int argc, char* argv[]) 
@@ -125,6 +124,16 @@ int main(int argc, char* argv[])
 
         seconds = endTime.tv_sec - startTime.tv_sec;
         nanoSeconds = endTime.tv_nsec - startTime.tv_nsec;
+
+        for(int index=0; index < P; index++){
+            pthread_create(&producerThread[index], NULL, &makeProduct, (void*) &index);
+            printf("Inside Producer loop\n");
+        }
+
+        for(int index=0; index<C; index++){
+            pthread_create(&consumerThread[index], NULL, &consumeProduct, (void*) &index);
+            printf("Inside consumer loop");
+        }
         
         if(endTime.tv_nsec < startTime.tv_nsec){
             seconds--;
