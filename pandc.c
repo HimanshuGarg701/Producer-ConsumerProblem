@@ -19,6 +19,7 @@ int Ptime;  //Sleep time for producer thread after producing 1 product
 int Ctime;  //Sleep time for consumer thread after consuming 1 product
 int consumption;  //Numver of items to be consumed
 bool over;  //Check if items are over consumed
+int extraProducts;  //Number of over produced products
 
 sem_t zeroProductsPresent;     //semaphore to check if queue is empty
 sem_t allProductsPresent;      //semaphore to check if queue is full
@@ -57,8 +58,39 @@ int grab_item()
 }
 
 void *consumeProduct(void *arg){
-    printf("Consumed THread");
-    pthread_exit(0);
+    int products;
+
+    if(over){
+        over = false;
+        for(int index=0; index<consumption+extraProducts; index++){
+            sem_wait(&allProductsPresent);
+            pthread_mutex_lock(&block);
+
+            products = grab_item();
+            productsConsumedArray[counterProducer] = products;
+            counterProducer++;
+            printf("%d consumedby the consumer thread\n", products);
+
+            pthread_mutex_unlock(&block);
+            sem_post(&zeroProductsPresent);
+            sleep(Ctime);
+        }
+    }else{
+        for(int index=0; index<consumption; index++){
+            sem_wait(&allProductsPresent);
+            pthread_mutex_lock(&block);
+
+            products = grab_item();
+            productsConsumedArray[counterProducer] = products;
+            counterProducer++;
+            printf("%d was consumed\n", products);
+
+            pthread_mutex_unlock(&block);
+            sem_post(&zeroProductsPresent);
+            sleep(Ctime);
+
+        }
+    }
 }
 
 /* 
@@ -118,6 +150,7 @@ int main(int argc, char* argv[])
             over = false;
         }else{
             over = true;
+            extraProducts = P*X - C*consumption;
         }
 
         pthread_t producerThread[P];
@@ -149,12 +182,10 @@ int main(int argc, char* argv[])
 
         for(int index=0; index < P; index++){
             pthread_create(&producerThread[index], NULL, &makeProduct, (void*) &index);
-            printf("Inside Producer loop\n");
         }
 
         for(int index=0; index<C; index++){
             pthread_create(&consumerThread[index], NULL, &consumeProduct, (void*) &index);
-            printf("Consumer used");
         }
 
         for(int index=0; index < C;index++){
