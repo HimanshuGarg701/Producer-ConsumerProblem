@@ -63,27 +63,28 @@ void *consumeProduct(void *arg){
     if(over){
         over = false;
         for(int index=0; index<consumption+extraProducts; index++){
-            sem_wait(&allProductsPresent);
             pthread_mutex_lock(&block);
+            sem_wait(&allProductsPresent);
 
             products = grab_item();
-            productsConsumedArray[counterProducer] = products;
-            counterProducer++;
-            printf("%d consumedby the consumer thread\n", products);
+            productsConsumedArray[counterConsumer] = products;
+            counterConsumer++;
+            printf("%d consumed by the consumer thread\n", products);
 
-            pthread_mutex_unlock(&block);
             sem_post(&zeroProductsPresent);
+            pthread_mutex_unlock(&block);
             sleep(Ctime);
         }
     }else{
         for(int index=0; index<consumption; index++){
-            sem_wait(&allProductsPresent);
-            pthread_mutex_lock(&block);
 
+            pthread_mutex_lock(&block);
+            sem_wait(&allProductsPresent);
+    
             products = grab_item();
-            productsConsumedArray[counterProducer] = products;
-            counterProducer++;
-            printf("%d was consumed\n", products);
+            productsConsumedArray[counterConsumer] = products;
+            counterConsumer++;
+            printf("%d consumed by the consumer thread\n", products);
 
             pthread_mutex_unlock(&block);
             sem_post(&zeroProductsPresent);
@@ -128,6 +129,13 @@ void *makeProduct(void *arg){
         sleep(Ptime);
     }
     pthread_exit(0);
+}
+
+void checkSame(){
+    for(int index=0; index<P*X; index++){
+        printf("%d consumer\n", productsConsumedArray[index]);
+        printf("%d produced\n\n", productsProducedArray[index]);
+    }
 }
 
 int main(int argc, char* argv[]) 
@@ -204,7 +212,8 @@ int main(int argc, char* argv[])
             seconds--;
             nanoSeconds = nanoSeconds + 1000000000L;
         }
-        printf("\nnanoSec : %ld", nanoSeconds);
+        printf("\nnanoSec : %ld\n", nanoSeconds);
+        checkSame();
     }
     return 0;
 }
