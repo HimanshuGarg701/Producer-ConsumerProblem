@@ -10,6 +10,12 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
+void put_item(int item);
+int grab_item();
+void *consumeProduct(void *arg);
+void *makeProduct(void *arg);
+void checkSame();
+
 
 int N;      //Number of Buffers
 int P;      //Number of Producer Threads
@@ -25,18 +31,128 @@ sem_t zeroProductsPresent;     //semaphore to check if queue is empty
 sem_t allProductsPresent;      //semaphore to check if queue is full
 pthread_mutex_t block;
 
-int productsProducedArray[500];      //Array for producer
-int productsConsumedArray[500];      //Array for Consumer
+int* productsProducedArray;      //Array for producer
+int* productsConsumedArray;      //Array for Consumer
 int counterProducer = 0;             //Counter to keep track of producer array 
 int counterConsumer = 0;             //Counter to keep track of consumer array 
 
 //Queue for holding all the products that producer make & from where customer comsumes the product.
-int productsQueue[500];
+int* productsQueue;
 int enterIndex = 0;     //Index where product will be added.
 int removeIndex = 0;    //Index where product will be removed.
 
 int productsCounter = 1;    //Keeps a track of number of products in queue
 
+
+
+int main(int argc, char* argv[]) 
+{
+    printf("Started");
+    //Need exactly 7 arguments including ./pandc
+    if(argc!=7){
+        printf("\nMust have 6 arguments\n");
+        exit(0);
+    }
+    else{
+        //Initializing all the arguments
+        N = atoi(argv[1]);
+        P = atoi(argv[2]);
+        C = atoi(argv[3]);
+        X = atoi(argv[4]);
+        Ptime = atoi(argv[5]);
+        Ctime = atoi(argv[6]);
+        consumption = (P*X)/C;
+
+        //isOver should be 0 when no extra products
+        int isOver = (P*X)%C;
+
+        //Setting boolean value for over if extra products present
+        if(isOver==0){
+            over = false;
+        }else{
+            over = true;
+            //Extra products are equal to toal products produced minus total products consumed
+            extraProducts = P*X - C*consumption;
+        }
+
+        //Initializing producer and consumer threads
+        pthread_t producerThread[P];
+        pthread_t consumerThread[C];
+
+        //Initializing the size of consumer, product array and productsQueue
+        productsQueue = (int*)calloc(N, sizeof(int));
+        productsProducedArray = (int*)calloc(P*X, sizeof(int));
+        productsConsumedArray = (int*)calloc(P*X, sizeof(int));
+
+
+        //Printing all the arguments obtained from user
+        printf("\nValues received are\n");
+        printf("N is: %d\n", N);
+        printf("P is: %d\n", P);
+        printf("C is: %d\n", C);
+        printf("X is: %d\n", X);
+        printf("Ptime is: %d\n", Ptime);
+        printf("Ctime is: %d\n\n", Ctime);
+
+
+        //Noting down the start time before producing and consuming products
+        struct timespec startTime;
+        struct timespec endTime;
+        time_t seconds;
+        long nanoSeconds;
+
+        clock_gettime(0, &startTime);
+
+        //Initializing semaphores and pthread
+        sem_init(&allProductsPresent, 0, 0);
+        sem_init(&zeroProductsPresent, 0, N);
+        pthread_mutex_init(&block, NULL);
+
+        seconds = endTime.tv_sec - startTime.tv_sec;
+        nanoSeconds = endTime.tv_nsec - startTime.tv_nsec;
+
+        //Loop to create P number of producer threads
+        for(int index=0; index < P; index++){
+            int producerId = index+1;
+            pthread_create(&producerThread[index], NULL, &makeProduct, (void*) &producerId);
+        }
+
+        //Loop to create C number of consumer threads
+        for(int index=0; index<C; index++){
+            int consumerId = index+1;
+            pthread_create(&consumerThread[index], NULL, &consumeProduct, (void*) &consumerId);
+        }
+
+        //Loop to join all producer threads
+        for(int index=0; index<P; index++){
+            int producerId = index + 1;
+            pthread_join(producerThread[index], NULL);
+            printf("Producer joined %d\n", producerId);
+        }
+
+        //Loop to join all consumer threads
+        for(int index=0; index < C;index++){
+            int consumerId = index+1;
+            pthread_join(consumerThread[index], NULL);
+            printf("Consumer joined %d\n", consumerId);
+        }
+
+        //Destroying semaphores and pthread
+        pthread_mutex_destroy(&block);
+        sem_destroy(&zeroProductsPresent);
+        sem_destroy(&allProductsPresent);
+
+        clock_gettime(0, &endTime);
+
+        if(endTime.tv_nsec < startTime.tv_nsec){
+            seconds--;
+            nanoSeconds = nanoSeconds + 1000000000L;
+        }
+        checkSame();
+        printf("\nnanoSec : %ld\n", nanoSeconds);
+    }
+    return 0;
+}
 
 /**
  * for the 2 functions below, look
@@ -48,7 +164,8 @@ int productsCounter = 1;    //Keeps a track of number of products in queue
  * Item removed is returned
  */
 int grab_item()
-{
+{   
+    //The product removed is replaced by 0 and the product is returned
     int product = productsQueue[removeIndex];
     productsQueue[removeIndex++] = 0;
     if(removeIndex==N){
@@ -57,40 +174,60 @@ int grab_item()
     return product;
 }
 
+//ConsumerProduct method deals with all the consumer threads to consume products from queue
 void *consumeProduct(void *arg){
-    int products;
 
+    //The product that will be consumed
+    int products = 0;
+    //Unique Id of each consumer thread
+    int threadId = *((int*) arg);
+
+    //Whenever there are extra products, thread has to consume consumption+extraProducts
     if(over){
         over = false;
         for(int index=0; index<consumption+extraProducts; index++){
-            pthread_mutex_lock(&block);
+            
+            //Locking the thread and semaphore to stop other threads to consume product and to
+            //not consume products when queue is empty.
             sem_wait(&allProductsPresent);
-
+            pthread_mutex_lock(&block);
+            
+            //storing the product consumed to the consumer array
             products = grab_item();
             productsConsumedArray[counterConsumer] = products;
             counterConsumer++;
-            printf("%d consumed by the consumer thread\n", products);
+            printf("%d was consumed by consumer -->\t %d\n", products, threadId);
 
-            sem_post(&zeroProductsPresent);
+            //Unlocking thread and semaphore
             pthread_mutex_unlock(&block);
+            sem_post(&zeroProductsPresent);
+            
+            //Thread sleeps for Ctime after producing a product
             sleep(Ctime);
         }
+        //thread exit so every thread exits after producing required products
+        pthread_exit(0);
     }else{
-        for(int index=0; index<consumption; index++){
 
-            pthread_mutex_lock(&block);
+        //When there are no extra products, then consumer will only consume (P*X)/C products
+        //Rest of the code remains the same
+        int threadId = *((int*) arg);
+        for(int index=0; index<consumption; index++){
+            
             sem_wait(&allProductsPresent);
+            pthread_mutex_lock(&block);
     
             products = grab_item();
             productsConsumedArray[counterConsumer] = products;
             counterConsumer++;
-            printf("%d consumed by the consumer thread\n", products);
+            printf("%d was consumed by consumer -->\t %d\n", products, threadId);
 
             pthread_mutex_unlock(&block);
             sem_post(&zeroProductsPresent);
             sleep(Ctime);
 
         }
+        pthread_exit(0);
     }
 }
 
@@ -100,7 +237,8 @@ void *consumeProduct(void *arg){
  * so it can be consumed
  */
 void put_item(int item)
-{
+{   
+    //The productsQueue gains a product whenever a product is produced
     productsQueue[enterIndex++] = item;
     if(enterIndex==N){
         enterIndex = 0;
@@ -109,19 +247,28 @@ void put_item(int item)
 
 //Method to make the product using the producer thread
 void *makeProduct(void *arg){
+    //The product that will be made will be stored in this variable
     int products = 0;
+    //The unique id of the producer thread
+    int threadId = *((int*) arg);
 
+    //Loop will run X times, so each thread makes X products
     for(int index=0; index < X; index++){
+        //ProductsCounter keeps a track of the total products
         products = productsCounter;
         productsCounter++;
 
+        //Locking the thread and semaphore to stop other threads to produce product and to
+        //not produce products when queue is full.
         sem_wait(&zeroProductsPresent);
         pthread_mutex_lock(&block);
+
+        //Storing the product made to the consumer array
         productsProducedArray[counterProducer] = products;
         counterProducer++;
         put_item(products);
 
-        printf("%d produced by the producer thread\n", products);
+        printf("%d was produced by producer -->\t %d\n", products, threadId);
 
         pthread_mutex_unlock(&block);
         sem_post(&allProductsPresent);
@@ -131,89 +278,16 @@ void *makeProduct(void *arg){
     pthread_exit(0);
 }
 
+//Method to check if the consumer and producer arrays are same
 void checkSame(){
+    printf("\nProducer | Consumer\n");
     for(int index=0; index<P*X; index++){
-        printf("%d consumer\n", productsConsumedArray[index]);
-        printf("%d produced\n\n", productsProducedArray[index]);
+        printf("%d\t | ", productsProducedArray[index]);
+        printf("%d\n", productsConsumedArray[index]);
+        if(productsConsumedArray[index] != productsProducedArray[index]){
+            printf("Arrays don't match");
+            exit(0);
+        }
     }
-}
-
-int main(int argc, char* argv[]) 
-{
-
-    if(argc!=7){
-        printf("\nMust have 6 arguments\n");
-        exit(0);
-    }
-    else{
-        N = atoi(argv[1]);
-        P = atoi(argv[2]);
-        C = atoi(argv[3]);
-        X = atoi(argv[4]);
-        Ptime = atoi(argv[5]);
-        Ctime = atoi(argv[6]);
-        consumption = (P*X)/C;
-        int isOver = (P*X)%C;
-        if(isOver==0){
-            over = false;
-        }else{
-            over = true;
-            extraProducts = P*X - C*consumption;
-        }
-
-        pthread_t producerThread[P];
-        pthread_t consumerThread[C];
-
-        printf("\nValues received are\n");
-        printf("N is: %d\n", N);
-        printf("P is: %d\n", P);
-        printf("C is: %d\n", C);
-        printf("X is: %d\n", X);
-        printf("Ptime is: %d\n", Ptime);
-        printf("Ctime is: %d\n", Ctime);
-
-        struct timespec startTime;
-        struct timespec endTime;
-        time_t seconds;
-        long nanoSeconds;
-
-        clock_gettime(0, &startTime);
-
-        pthread_mutex_init(&block, NULL);
-        sem_init(&allProductsPresent, 0, 0);
-        sem_init(&zeroProductsPresent, 0, N);
-
-        clock_gettime(0, &endTime);
-
-        seconds = endTime.tv_sec - startTime.tv_sec;
-        nanoSeconds = endTime.tv_nsec - startTime.tv_nsec;
-
-        for(int index=0; index < P; index++){
-            pthread_create(&producerThread[index], NULL, &makeProduct, (void*) &index);
-        }
-
-        for(int index=0; index<C; index++){
-            pthread_create(&consumerThread[index], NULL, &consumeProduct, (void*) &index);
-        }
-
-        for(int index=0; index < C;index++){
-            pthread_join(consumerThread[index], NULL);
-        }
-
-        for(int index=0; index<P; index++){
-            pthread_join(producerThread[index], NULL);
-        }
-
-        sem_destroy(&zeroProductsPresent);
-        pthread_mutex_destroy(&block);
-        sem_destroy(&allProductsPresent);
-
-        if(endTime.tv_nsec < startTime.tv_nsec){
-            seconds--;
-            nanoSeconds = nanoSeconds + 1000000000L;
-        }
-        printf("\nnanoSec : %ld\n", nanoSeconds);
-        checkSame();
-    }
-    return 0;
+    printf("Arrays Match");
 }
