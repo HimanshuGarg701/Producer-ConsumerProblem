@@ -1,188 +1,94 @@
 pseudo goes here
 
 // All the global variables
-
-int N;      //Number of Buffers
-int P;      //Number of Producer Threads
-int C;      //Number of consumer Threads
-int X;      //Products produced by each producer
-int Ptime;  //Sleep time for producer thread after producing 1 product
-int Ctime;  //Sleep time for consumer thread after consuming 1 product
-int consumption;  //Numver of items to be consumed
-bool over;  //Check if items are over consumed
-int extraProducts;  //Number of over produced products
-
-sem_t zeroProductsPresent;     //semaphore to check if queue is empty
-sem_t allProductsPresent;      //semaphore to check if queue is full
-pthread_mutex_t block;
-
-int productsProducedArray[500];      //Array for producer
-int productsConsumedArray[500];      //Array for Consumer
-int counterProducer = 0;             //Counter to keep track of producer array 
-int counterConsumer = 0;             //Counter to keep track of consumer array 
-
-//Queue for holding all the products that producer make & from where customer comsumes the product.
-int productsQueue[500];
-int enterIndex = 0;     //Index where product will be added.
-int removeIndex = 0;    //Index where product will be removed.
-
-int productsCounter = 1;    //Keeps a track of number of products in queue
-
+Global declaration of N, P, C, X, Ptime, Ctime, semaphores, producer/consumer array, productsCounter and Buffered Queue
 
 
 //Methods start here
 
-int grab_item(){
-	// Remove product from the productsQueue
-	product = productsQueue[removeIndex];
-	
-	productQueue[removeIndex++] = 0;
-	
-	//Make sure to check exception for removeIndex, cycle the process
-	
-	if(removeIndex is N)
-		removeIndex = 0;
-	
-	return product;
-}
-
-void *consumeProduct(void *arg){
-	//Variable to store the removed item
-	int product;
-	if(overConsumed is True){
-		loop(0 to actualConsumption + extraProducts){
-			//If zero products present, dont allow thread to consume item
-			semaphoreWait if zero products present;
-			pthreadLock;
-			
-			//REmoving the product from queue and adding to array 
-			product = grab_item();
-			productsConsumedArray[counterConsumer++] = product;
-			
-			//unlock semaphore and pthread
-			
-			mutexUnlock;
-			semaphorePost;
-			sleep for Ctime;
-			
-		}
-	}
-	else{
-		//Not overconsumed
-		loop(0 to actualConsumption){
-			//The same as above
-			semaphoreWait;
-			mutexLock;
-			
-			product = grabItem();
-			productsCOnsumedArray add product;
-			
-			mutexUnlock;
-			semaphorePost;
-			
-			sleep(Ctime);
-		}
-	}
-}
+METHOD grab_item
+	product = productsQueue[removeIndex]
+	Replace removedIndex place in productsQueue to 0
+	return product
 
 
-void put_item(int item){
-	//Adding product to the queue
-	productsQueue[enterIndex++] = item;
+METHOD consumeProduct
 	
-	//Make sure to set enterIndex to 0 when it reaches N
-	if(enterIndex is N)
-		enterIndex = 0;
-}
+	loop(0 to productsToConsume)
+		
+		semaphoreWait
+		mutexLock
 
-void *makeProduct(void *arg){
-	//Store the product to be made in a variable
-	int product = 0;
-	
-	loop(0 to X){
+		product = grabItem()
+		productsConsumedArray add product
+
+		mutexUnlock
+		semaphorePost
+
+		sleepThread
+
+
+
+METHOD put_item(item)
+	productsQueue[enterIndex++] = item
+		
+
+METHOD makeProduct
+	loop(0 to X)
 		//Keeping track of products manufactured
-		int product = productsCounter;
-		productsCounter++;
+		int product = productsCounter
+		productsCounter++
 		
-		//Similar to consumeProduct
-		//If all slots filled, don't make more products
-		semaphoreWait;
-		pthreadMutexLock;
 		
-		//Add product to producer array
-		productsProducedArray[counterProducer++] = product;
-		put_item(product);
+		semaphoreWait
+		pthreadMutexLock
 		
-		//Unlock thread and semaphore
-		pthreadMutexUnlock;
-		semaphorePost;
+		productsProducedArray add product
+		put_item(product)
 		
-		sleep(Ptime);
+		pthreadMutexUnlock
+		semaphorePost
 		
-	}
-}
+		sleepThread
+		
 
-void checkSame(){
-	//check if producer and consumer array are same
-	loop(0 to P*X){
-		if(consumerArray[index]!=producerArray[index]){
-			//Arrays not same
-			exit(0);
-		}
-		//Arrays are same 
-	}
-}
+METHOD checkSame
+	loop(0 to P*X)
+		exit if mismatch found
+		
+	Same if Loop Ends
 
-int main(int argc, char* argv[]){
-	//Chcek number of arguments
-	if(argc is not 7){
-		exit;
-	}
-	else{
+
+METHOD MAIN
+	
+	if(argc is not 7)
+		exit
+		
+	else
 		initialize N, P, C, X, Ptime, Ctime;
 		consumption = (P*X)/C;
 		
-		//Check for more threads
-		if((P*X)%C==0){
-			over = false;
-		}else{
-			over = true;
-			extraProducts = P*X - C*consumption;
-		}
+		if (P*X)%C not 0
+			extraProducts = P*X - C*consumption
 		
 		
-		//Initialize semaphores and thread
-        	sem_init(&allProductsPresent, 0, 0);
-        	sem_init(&zeroProductsPresent, 0, N);
-        	pthread_mutex_init(&block, NULL);
+		semaphore and pThread Initialization
+
+		loop(0 to P)
+			producerThreadCreate
+		
+		loop(0 to C)
+			consumerThreadCreate
+
+		loop(0 to P)
+			producerThreadJoin
+		
+		loop(0 to C)
+			consumerThreadJoin
+		
+		Destroy pthread and semaphores
         	
-		//Create Producer and Consumer Threads
-		loop(0 to P){
-			pThreadCreate;
-		}
-		
-		loop(0 to C){
-			pTHreadCreate;
-		}
-		
-		//Join Threads
-		loop(0 to P){
-			pThreadJoin;
-		}
-		
-		loop(0 to C){
-			pThreadJoin;
-		}
-		
-		//destroy semaphores
-		pthread_mutex_destroy(&block);
-		sem_destroy(&zeroProductsPresent);
-        	sem_destroy(&allProductsPresent);
-        	
-        	//Finally check if the arrays are same
-        	checkSame();
-	}	
-}
+        	checkSame
 
 
 
