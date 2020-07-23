@@ -179,56 +179,40 @@ void *consumeProduct(void *arg){
 
     //The product that will be consumed
     int products = 0;
-    //Unique Id of each consumer thread
-    int threadId = *((int*) arg);
 
+    int numLoops = 0;
     //Whenever there are extra products, thread has to consume consumption+extraProducts
     if(over){
         over = false;
-        for(int index=0; index<consumption+extraProducts; index++){
-            
-            //Locking the thread and semaphore to stop other threads to consume product and to
-            //not consume products when queue is empty.
-            sem_wait(&allProductsPresent);
-            pthread_mutex_lock(&block);
-            
-            //storing the product consumed to the consumer array
-            products = grab_item();
-            productsConsumedArray[counterConsumer] = products;
-            counterConsumer++;
-            printf("%d was consumed by consumer -->\t %d\n", products, threadId);
-
-            //Unlocking thread and semaphore
-            pthread_mutex_unlock(&block);
-            sem_post(&zeroProductsPresent);
-            
-            //Thread sleeps for Ctime after producing a product
-            sleep(Ctime);
-        }
-        //thread exit so every thread exits after producing required products
-        pthread_exit(0);
+        numLoops = consumption+extraProducts;
     }else{
-
-        //When there are no extra products, then consumer will only consume (P*X)/C products
-        //Rest of the code remains the same
-        int threadId = *((int*) arg);
-        for(int index=0; index<consumption; index++){
-            
-            sem_wait(&allProductsPresent);
-            pthread_mutex_lock(&block);
-    
-            products = grab_item();
-            productsConsumedArray[counterConsumer] = products;
-            counterConsumer++;
-            printf("%d was consumed by consumer -->\t %d\n", products, threadId);
-
-            pthread_mutex_unlock(&block);
-            sem_post(&zeroProductsPresent);
-            sleep(Ctime);
-
-        }
-        pthread_exit(0);
+        numLoops = consumption;
     }
+
+    //The id of thread
+    int threadId = *((int*) arg);
+    for(int index=0; index<numLoops; index++){
+        
+        //Locking the thread and semaphore to stop other threads to consume product and to
+        //not consume products when queue is empty.
+        sem_wait(&allProductsPresent);
+        pthread_mutex_lock(&block);
+
+        //storing the product consumed to the consumer array
+        products = grab_item();
+        productsConsumedArray[counterConsumer] = products;
+        counterConsumer++;
+        printf("%d was consumed by consumer -->\t %d\n", products, threadId);
+
+        //Unlocking thread and semaphore
+        pthread_mutex_unlock(&block);
+        sem_post(&zeroProductsPresent);
+        
+        //Thread sleeps for Ctime after producing a product
+        sleep(Ctime);
+    }
+    //thread exit so every thread exits after producing required products
+    pthread_exit(0);
 }
 
 /* 
@@ -249,7 +233,8 @@ void put_item(int item)
 void *makeProduct(void *arg){
     //The product that will be made will be stored in this variable
     int products = 0;
-    //The unique id of the producer thread
+
+    //The id of thread
     int threadId = *((int*) arg);
 
     //Loop will run X times, so each thread makes X products
