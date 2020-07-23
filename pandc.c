@@ -92,7 +92,8 @@ int main(int argc, char* argv[])
         printf("C is: %d\n", C);
         printf("X is: %d\n", X);
         printf("Ptime is: %d\n", Ptime);
-        printf("Ctime is: %d\n\n", Ctime);
+        printf("Ctime is: %d\n", Ctime);
+        printf("Extra Products : %d\n\n", extraProducts);
 
 
         //Noting down the start time before producing and consuming products
