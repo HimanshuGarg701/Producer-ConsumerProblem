@@ -177,7 +177,7 @@ int grab_item()
 
 //ConsumerProduct method deals with all the consumer threads to consume products from queue
 void *consumeProduct(void *arg){
-
+    int threadId = *((int*) arg);
     //The product that will be consumed
     int products = 0;
 
@@ -190,8 +190,6 @@ void *consumeProduct(void *arg){
         numLoops = consumption;
     }
 
-    //The id of thread
-    int threadId = *((int*) arg);
     for(int index=0; index<numLoops; index++){
         
         //Locking the thread and semaphore to stop other threads to consume product and to
@@ -232,11 +230,10 @@ void put_item(int item)
 
 //Method to make the product using the producer thread
 void *makeProduct(void *arg){
+    int threadId = *((int*) arg);
     //The product that will be made will be stored in this variable
     int products = 0;
 
-    //The id of thread
-    int threadId = *((int*) arg);
 
     //Loop will run X times, so each thread makes X products
     for(int index=0; index < X; index++){
